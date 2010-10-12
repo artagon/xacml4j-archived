@@ -33,7 +33,7 @@ import com.artagon.xacml.v3.types.XPathExpressionType;
 import com.artagon.xacml.v3.types.XPathExpressionValue;
 import com.google.common.base.Preconditions;
 
-public class DefaultEvaluationContextHandler implements EvaluationContextHandler
+class DefaultEvaluationContextHandler implements EvaluationContextHandler
 {
 	private final static Logger log = LoggerFactory.getLogger(DefaultEvaluationContextHandler.class);
 	
@@ -48,7 +48,7 @@ public class DefaultEvaluationContextHandler implements EvaluationContextHandler
 	private Map<AttributeSelector, BagOfAttributeValues> attributeSelectorCache;
 	private Map<AttributeCategory, Node> contentCache;
 	
-	public DefaultEvaluationContextHandler(
+	DefaultEvaluationContextHandler(
 			RequestContextCallback requestContextCallback,
 			XPathProvider xpathProvider, 
 			PolicyInformationPoint pip)
@@ -66,7 +66,8 @@ public class DefaultEvaluationContextHandler implements EvaluationContextHandler
 	
 
 	@Override
-	public BagOfAttributeValues resolve(EvaluationContext context, AttributeDesignator ref) 
+	public BagOfAttributeValues resolve(EvaluationContext context, 
+			AttributeDesignator ref) 
 		throws EvaluationException 
 	{
 		BagOfAttributeValues v = requestContextCallback.getAttributeValues(
@@ -203,6 +204,7 @@ public class DefaultEvaluationContextHandler implements EvaluationContextHandler
 	 * while resolving reference
 	 */
 	private final Node doGetContent(EvaluationContext context, AttributeCategory category) 
+		throws EvaluationException 
 	{
 		
 		Node content = requestContextCallback.getContent(category);
@@ -298,9 +300,9 @@ public class DefaultEvaluationContextHandler implements EvaluationContextHandler
 	 * Converts a given node list to the {@link BagOfAttributeValues}
 	 * 
 	 * @param context an evaluation context
-	 * @param ref
-	 * @param nodeSet
-	 * @return
+	 * @param ref an attribute selector
+	 * @param nodeSet a node set
+	 * @return {@link BagOfAttributeValues}
 	 * @throws EvaluationException
 	 */
 	private BagOfAttributeValues toBag(EvaluationContext context,
