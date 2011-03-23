@@ -4,7 +4,7 @@
 	<groupId>com.artagon.xacml</groupId>
 	<artifactId>xacml</artifactId>
 	<packaging>pom</packaging>
-	<version>1.2.3-SNAPSHOT</version>
+	<version>1.2.3</version>
 	<name>Artagon OASIS XACML 3.0 Project</name>
 	<url>http://www.oasis-open.org/committees/tc_home.php?wg_abbrev=xacml
 	</url>
@@ -302,21 +302,21 @@
 		</pluginRepository>
 	</pluginRepositories>
 	<distributionManagement>
-		<repository>
-			<uniqueVersion>false</uniqueVersion>
-			<id>comcast-release-repo</id>
-			<url>scp://cim-trac.comcastonline.com/opt/csw/apache2/share/htdocs/http/godzilla/maven/repo/releases</url>
-			<layout>default</layout>
-		</repository>
-		<snapshotRepository>
-			<id>comcast-snapshot-repo</id>
-			<url>scp://cim-trac.comcastonline.com/opt/csw/apache2/share/htdocs/http/godzilla/maven/repo/snapshots</url>
-			<layout>default</layout>
-		</snapshotRepository>
-	</distributionManagement>
+            <repository>
+                    <uniqueVersion>false</uniqueVersion>
+                    <id>cimrepo</id>
+                    <url>http://repo.dev.cim.comcast.net/nexus/content/repositories/releases</url>
+                    <layout>default</layout>
+            </repository>
+            <snapshotRepository>
+                    <id>cimrepo-snapshots</id>
+                    <url>http://repo.dev.cim.comcast.net/nexus/content/repositories/snapshots</url>
+                    <layout>default</layout>
+            </snapshotRepository>
+       </distributionManagement>
 	<scm>
-		<connection>scm:svn:https://venture1.projectlocker.com/Artagon/xacml/svn/trunk</connection>
-		<developerConnection>scm:svn:https://venture1.projectlocker.com/Artagon/xacml/svn/trunk</developerConnection>
-		<url>scm:svn:https://venture1.projectlocker.com/Artagon/xacml/svn/trunk</url>
+		<connection>scm:svn:https://venture1.projectlocker.com/Artagon/xacml/svn/tags/xacml-1.2.3</connection>
+		<developerConnection>scm:svn:https://venture1.projectlocker.com/Artagon/xacml/svn/tags/xacml-1.2.3</developerConnection>
+		<url>scm:svn:https://venture1.projectlocker.com/Artagon/xacml/svn/tags/xacml-1.2.3</url>
 	</scm>
 </project>
