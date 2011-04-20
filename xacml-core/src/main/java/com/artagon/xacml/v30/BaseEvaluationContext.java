@@ -3,8 +3,10 @@ package com.artagon.xacml.v30;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 import org.slf4j.Logger;
@@ -25,15 +27,22 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 	private Collection<Advice> advices;
 	private Collection<Obligation> obligations;
 	
-	private boolean validateAtRuntime = false;
-	
-	
-	private TimeZone timezone;
+	private boolean validateFuncParamsAtRuntime = false;
 	
 	private List<CompositeDecisionRuleIDReference> evaluatedPolicies;
 		
 	private StatusCode evaluationStatus;
+	
+	private TimeZone timezone;
 	private Calendar currentDateTime;
+	
+	private Map<AttributeDesignatorKey, BagOfAttributeValues> designCache;
+	private Map<AttributeSelectorKey, BagOfAttributeValues> selectCache;
+	
+	private Integer combinedDecisionCacheTTL = null;
+	
+	private Map<PolicyIDReference, Policy> cachedPolicyRefs;
+	private Map<PolicySetIDReference, PolicySet> cachedPolicySetRefs;
 	
 	/**
 	 * Constructs evaluation context with a given attribute provider,
@@ -44,11 +53,12 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 	protected BaseEvaluationContext(
 			EvaluationContextHandler attributeService, 
 			PolicyReferenceResolver repository){
-		this(false, attributeService,  repository);
+		this(false, 30, attributeService,  repository);
 	}
 	
 	protected BaseEvaluationContext(
 			boolean validateFuncParams, 
+			int defaultDecisionCacheTTL,
 			EvaluationContextHandler contextHandler,
 			PolicyReferenceResolver repository){
 		Preconditions.checkNotNull(contextHandler);
@@ -62,6 +72,11 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 		this.timezone = TimeZone.getTimeZone("UTC");
 		this.currentDateTime = Calendar.getInstance(timezone);
 		this.evaluatedPolicies = new LinkedList<CompositeDecisionRuleIDReference>();
+		this.designCache = new HashMap<AttributeDesignatorKey, BagOfAttributeValues>(128);
+		this.selectCache = new HashMap<AttributeSelectorKey, BagOfAttributeValues>(128);
+		this.cachedPolicyRefs = new HashMap<PolicyIDReference, Policy>(128);
+		this.cachedPolicySetRefs = new HashMap<PolicySetIDReference, PolicySet>(128);
+		this.combinedDecisionCacheTTL = (defaultDecisionCacheTTL > 0)?defaultDecisionCacheTTL:null;
 	}
 	
 	@Override
@@ -72,6 +87,20 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 	@Override
 	public void setEvaluationStatus(StatusCode status){
 		this.evaluationStatus = status;
+	}
+	
+	@Override
+	public int getDecisionCacheTTL() {
+		return (combinedDecisionCacheTTL == null)?0:combinedDecisionCacheTTL;
+	}
+
+	@Override
+	public void setDecisionCacheTTL(int ttl) {
+		if(combinedDecisionCacheTTL == null){
+			this.combinedDecisionCacheTTL = ttl;
+			return;
+		}
+		this.combinedDecisionCacheTTL = (ttl > 0)?Math.min(this.combinedDecisionCacheTTL, ttl):0;
 	}
 
 	@Override
@@ -97,12 +126,12 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 
 	@Override
 	public boolean isValidateFuncParamsAtRuntime() {
-		return validateAtRuntime;
+		return validateFuncParamsAtRuntime;
 	}
 	
 	@Override
 	public void setValidateFuncParamsAtRuntime(boolean validate){
-		this.validateAtRuntime = validate;
+		this.validateFuncParamsAtRuntime = validate;
 	}
 
 	@Override
@@ -246,12 +275,20 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 			AttributeDesignatorKey ref) 
 		throws EvaluationException
 	{
-		BagOfAttributeValues v = contextHandler.resolve(this, ref);
-		if(log.isDebugEnabled()){
-			log.debug("Resolved designator=\"{}\" " +
-					"to value=\"{}\"", ref, v);
+		BagOfAttributeValues v = designCache.get(ref);
+		if(v != null){
+			if(log.isDebugEnabled()){
+				log.debug("Found designator=\"{}\" " +
+						"value=\"{}\" in cache", ref, v);
+			}
+			return v;
 		}
-		return (v == null)?ref.getDataType().emptyBag():v;
+		v = contextHandler.resolve(this, ref);
+		v = (v == null)?ref.getDataType().emptyBag():v;
+		// cache resolved designator
+		// value internally
+		setDesignatorValue(ref, v);
+		return v;
 	}
 	
 	@Override
@@ -259,16 +296,49 @@ public abstract class BaseEvaluationContext implements EvaluationContext
 			AttributeSelectorKey ref)
 			throws EvaluationException 
 	{
-		BagOfAttributeValues v = contextHandler.resolve(this, ref);
-		if(log.isDebugEnabled()){
-			log.debug("Resolved selector=\"{}\" " +
-					"to value=\"{}\"", ref, v);
+		BagOfAttributeValues v = selectCache.get(ref);
+		if(v != null){
+			if(log.isDebugEnabled()){
+				log.debug("Found selector=\"{}\" " +
+						"value=\"{}\" in cache", ref, v);
+			}
+			return v;
 		}
-		return (v == null)?ref.getDataType().emptyBag():v;
+		v = contextHandler.resolve(this, ref);
+		v = (v == null)?ref.getDataType().emptyBag():v;
+		// cache resolved selector
+		// value internally
+		setSelectorValue(ref, v);
+		return v;
+	}
+	
+	public void setDesignatorValue(
+			AttributeDesignatorKey key, 
+			BagOfAttributeValues v){
+		Preconditions.checkNotNull(key);
+		this.designCache.put(key, (v == null)?key.getDataType().emptyBag():v);
+	}
+	
+	public void setSelectorValue(
+			AttributeSelectorKey key, 
+			BagOfAttributeValues v){
+		Preconditions.checkNotNull(key);
+		this.selectCache.put(key, (v == null)?key.getDataType().emptyBag():v);
 	}
 	
 	@Override
 	public Collection<CompositeDecisionRuleIDReference> getEvaluatedPolicies() {
 		return Collections.unmodifiableList(evaluatedPolicies);
+	}
+	
+	/**
+	 * Clears context state
+	 */
+	public void clear()
+	{
+		this.combinedDecisionCacheTTL = null;
+		this.designCache.clear();
+		this.selectCache.clear();
+		this.evaluatedPolicies.clear();
 	}
 }

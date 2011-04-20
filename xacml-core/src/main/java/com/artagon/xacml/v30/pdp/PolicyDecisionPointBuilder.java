@@ -3,6 +3,8 @@ package com.artagon.xacml.v30.pdp;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.management.NotCompliantMBeanException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ public final class PolicyDecisionPointBuilder
 	private PolicyInformationPoint pip;
 	private CompositeDecisionRule rootPolicy;
 	private List<RequestContextHandler> handlers;
+	private int defaultDecisionCacheTTL;
 	
 	private PolicyDecisionPointBuilder(String id){
 		Preconditions.checkNotNull(id);
@@ -49,7 +52,13 @@ public final class PolicyDecisionPointBuilder
 	public PolicyDecisionPointBuilder withDecisionCache(
 			PolicyDecisionCache cache){
 		Preconditions.checkNotNull(cache);
-		this.decisionCache = cache;
+		this.decisionCache = cache; 
+		return this;
+	}
+	
+	public PolicyDecisionPointBuilder withDecisionCacheTTL(
+			int ttl){
+		this.defaultDecisionCacheTTL = ttl;
 		return this;
 	}
 	
@@ -110,6 +119,11 @@ public final class PolicyDecisionPointBuilder
 		RequestContextHandlerChain chain = new RequestContextHandlerChain(handlers);
 		DefaultPolicyDecisionPointContextFactory factory = new DefaultPolicyDecisionPointContextFactory(
 				rootPolicy, repository, decisionAuditor,  decisionCache, xpathProvider, pip, chain);
-		return new DefaultPolicyDecisionPoint(id, factory);
+		factory.setDefaultDecisionCacheTTL(defaultDecisionCacheTTL);
+		try{
+			return new DefaultPolicyDecisionPoint(id, factory);
+		}catch(NotCompliantMBeanException e){
+			throw new IllegalStateException(e);
+		}
 	}
 }

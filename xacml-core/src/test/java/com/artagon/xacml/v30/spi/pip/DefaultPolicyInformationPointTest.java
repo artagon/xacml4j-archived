@@ -70,7 +70,8 @@ public class DefaultPolicyInformationPointTest
 	public void testAttributeResolutionWhenMatchingAttributeResolverFoundResolverResultsIsCachable() throws Exception
 	{
 		Map<String, BagOfAttributeValues> values = ImmutableMap.of(
-				"testAttributeId1", StringType.STRING.bagOf(StringType.STRING.create("v1")));
+				"testAttributeId1", 
+				StringType.STRING.bagOf(StringType.STRING.create("v1")));
 		
 		AttributeDesignatorKey ref = new AttributeDesignatorKey(
 				AttributeCategories.SUBJECT_ACCESS,"testAttributeId1", StringType.STRING, null);
@@ -82,7 +83,8 @@ public class DefaultPolicyInformationPointTest
 		
 		// key resolved
 		expect(context.resolve(
-				new AttributeDesignatorKey(AttributeCategories.SUBJECT_ACCESS, "username", StringType.STRING, null)))
+				new AttributeDesignatorKey(
+						AttributeCategories.SUBJECT_ACCESS, "username", StringType.STRING, null)))
 				.andReturn(StringType.STRING.bagOf(StringType.STRING.create("testUser")));
 		
 		Capture<ResolverContext> resolverContext1 = new Capture<ResolverContext>();
@@ -94,11 +96,23 @@ public class DefaultPolicyInformationPointTest
 		
 		expect(attributeResolver.resolve(capture(ctx))).andReturn(result);
 		
+		context.setDesignatorValue(
+				new AttributeDesignatorKey(
+						AttributeCategories.SUBJECT_ACCESS, "" +
+						"testAttributeId1", 
+						StringType.STRING, null), 
+						StringType.STRING.bagOf(StringType.STRING.create("v1")));
+		
+		context.setDesignatorValue(
+				new AttributeDesignatorKey(
+						AttributeCategories.SUBJECT_ACCESS, 
+						"testAttributeId2", IntegerType.INTEGER, null), 
+						IntegerType.INTEGER.emptyBag());
 		Capture<ResolverContext> resolverContext2 = new Capture<ResolverContext>();
 
 		cache.putAttributes(capture(resolverContext2), eq(result));
 		
-		
+		context.setDecisionCacheTTL(descriptor.getPreferreredCacheTTL());
 		control.replay();
 		
 		BagOfAttributeValues v = pip.resolve(context, ref);
@@ -109,10 +123,12 @@ public class DefaultPolicyInformationPointTest
 	}
 	
 	@Test
-	public void testAttributeResolutionWhenMatchingAttributeResolverFoundResolverResultsIsNotCachable() throws Exception
+	public void testAttributeResolutionWhenMatchingAttributeResolverFoundResolverResultsIsNotCachable() 
+		throws Exception
 	{
 		Map<String, BagOfAttributeValues> values = ImmutableMap.of(
-				"testAttributeId3", StringType.STRING.bagOf(StringType.STRING.create("v1")));
+				"testAttributeId3", 
+				StringType.STRING.bagOf(StringType.STRING.create("v1")));
 		
 		AttributeDesignatorKey ref = new AttributeDesignatorKey(
 				AttributeCategories.SUBJECT_ACCESS,"testAttributeId3", StringType.STRING, null);
@@ -123,15 +139,33 @@ public class DefaultPolicyInformationPointTest
 				
 		// key resolved
 		expect(context.resolve(
-				new AttributeDesignatorKey(AttributeCategories.SUBJECT_ACCESS, "username", StringType.STRING, null)))
+				new AttributeDesignatorKey(
+						AttributeCategories.SUBJECT_ACCESS, "username", StringType.STRING, null)))
 				.andReturn(StringType.STRING.bagOf(StringType.STRING.create("testUser")));
+		
+		context.setDesignatorValue(
+				new AttributeDesignatorKey(
+						AttributeCategories.SUBJECT_ACCESS, 
+						"testAttributeId4", 
+						IntegerType.INTEGER, null), 
+						IntegerType.INTEGER.emptyBag());
+		
+		context.setDesignatorValue(
+				new AttributeDesignatorKey(
+						AttributeCategories.SUBJECT_ACCESS, 
+						"testAttributeId3", 
+						StringType.STRING, null), 
+						StringType.STRING.bagOf(StringType.STRING.create("v1")));
+			
+		
+		context.setDecisionCacheTTL(descriptorNoCache.getPreferreredCacheTTL());
 		
 		Capture<ResolverContext> ctx = new Capture<ResolverContext>();
 		
 		AttributeSet result = new AttributeSet(descriptorNoCache, values);
 		
 		expect(attributeResolver.resolve(capture(ctx))).andReturn(result);
-				
+		
 		control.replay();
 		
 		BagOfAttributeValues v = pip.resolve(context, ref);

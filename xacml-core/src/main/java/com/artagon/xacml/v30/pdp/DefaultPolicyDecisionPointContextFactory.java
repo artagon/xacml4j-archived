@@ -31,6 +31,7 @@ public class DefaultPolicyDecisionPointContextFactory
 	private boolean decisionCacheEnabled = true;
 	private boolean decisionAuditEnabled = true;
 	private boolean validateFuncParamsAtRuntime = false;
+	private int decisionCacheTTL = 30;
 	private XPathVersion defaultXPathVersion = XPathVersion.XPATH1;
 	
 	public DefaultPolicyDecisionPointContextFactory(
@@ -57,11 +58,30 @@ public class DefaultPolicyDecisionPointContextFactory
 		this.requestHandlers = handlerChain;
 	}
 	
+	@Override
+	public int getDefaultDecisionCacheTTL(){
+		return decisionCacheTTL;
+	}
+	
+	public void setDefaultDecisionCacheTTL(int ttl){
+		this.decisionCacheTTL = (ttl > 0)?ttl:0;
+	}
+	
 	public void setValidaFunctionParametersAtRuntime(
 			boolean validate){
 		this.validateFuncParamsAtRuntime = validate;
 	}
 	
+	@Override
+	public boolean isDecisionAuditEnabled() {
+		return decisionAuditEnabled;
+	}
+
+	@Override
+	public boolean isDecisionCacheEnabled() {
+		return decisionCacheEnabled;
+	}
+
 	@Override
 	public PolicyDecisionPointContext createContext(final PolicyDecisionCallback pdp) 
 	{
@@ -122,7 +142,8 @@ public class DefaultPolicyDecisionPointContextFactory
 				EvaluationContextHandler handler = new DefaultEvaluationContextHandler(
 						callback, xpathProvider, pip);
 				return new RootEvaluationContext(
-						validateFuncParamsAtRuntime, 
+						validateFuncParamsAtRuntime,
+						decisionCacheTTL,
 						defaultXPathVersion, 
 						policyReferenceResolver, 
 						handler);

@@ -226,4 +226,24 @@ class DelegatingEvaluationContext implements EvaluationContext
 	public Collection<CompositeDecisionRuleIDReference> getEvaluatedPolicies() {
 		return delegate.getEvaluatedPolicies();
 	}
+
+	public void setDesignatorValue(AttributeDesignatorKey ref,
+			BagOfAttributeValues v) {
+		delegate.setDesignatorValue(ref, v);
+	}
+
+	public void setSelectorValue(AttributeSelectorKey ref,
+			BagOfAttributeValues v) {
+		delegate.setSelectorValue(ref, v);
+	}
+
+	@Override
+	public int getDecisionCacheTTL() {
+		return delegate.getDecisionCacheTTL();
+	}
+
+	@Override
+	public void setDecisionCacheTTL(int ttl) {
+		delegate.setDecisionCacheTTL(ttl);
+	}
 }

@@ -2,6 +2,11 @@ package com.artagon.xacml.v30.pdp;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+import javax.management.NotCompliantMBeanException;
+import javax.management.StandardMBean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,22 +33,32 @@ import com.google.common.base.Preconditions;
  * @author Giedrius Trumpickas
  */
 public final class DefaultPolicyDecisionPoint 
-	implements PolicyDecisionPoint, PolicyDecisionCallback
+	extends StandardMBean implements PolicyDecisionPoint, PolicyDecisionCallback
 {
 	private final static Logger log = LoggerFactory.getLogger(DefaultPolicyDecisionPoint.class);
 		
+	private AtomicBoolean auditEnabled;
+	private AtomicBoolean cacheEnabled;
+	private AtomicLong decisionCount;
+	private AtomicLong decisionTime;
 	
 	private String id;
 	private PolicyDecisionPointContextFactory factory;
 	
 	public DefaultPolicyDecisionPoint(
 			String id,
-			PolicyDecisionPointContextFactory factory)
+			PolicyDecisionPointContextFactory factory) 
+		throws NotCompliantMBeanException
 	{
+		super(PolicyDecisionPointMBean.class);
 		Preconditions.checkNotNull(id);
 		Preconditions.checkNotNull(factory);
 		this.id = id;
 		this.factory = factory;
+		this.auditEnabled = new AtomicBoolean(factory.isDecisionAuditEnabled());
+		this.cacheEnabled = new AtomicBoolean(factory.isDecisionCacheEnabled());
+		this.decisionCount = new AtomicLong(0);
+		this.decisionTime = new AtomicLong(0);
 	}
 	
 	@Override
@@ -76,14 +91,16 @@ public final class DefaultPolicyDecisionPoint
 	{
 		PolicyDecisionCache decisionCache = context.getDecisionCache();
 		PolicyDecisionAuditor decisionAuditor = context.getDecisionAuditor();
-		Result r = decisionCache.getDecision(request);
+		long start = System.currentTimeMillis();
+		Result r =  null;
+		if(isDecisionCacheEnabled()){
+			r = decisionCache.getDecision(request);
+		}
 		if(r != null){
-			if(log.isDebugEnabled()){
-				log.debug("Found decision result in the decision cache");
-				log.debug("Decision request=\"{}\" " +
-						"result=\"{}\"", request,  r);
+			if(isDecisionAuditEnabled()){
+				decisionAuditor.audit(this, r, request);
 			}
-			decisionAuditor.audit(this, r, request);
+			decisionTime.set(System.currentTimeMillis() - start);
 			return r;
 		}
 		EvaluationContext evalContext = context.createEvaluationContext(request);
@@ -93,12 +110,15 @@ public final class DefaultPolicyDecisionPoint
 				decision, 
 				request.getIncludeInResultAttributes(), 
 				request.isReturnPolicyIdList());
-		if(log.isDebugEnabled()){
-			log.debug("Decision request=\"{}\" " +
-					"result=\"{}\"", request,  r);
+		if(isDecisionAuditEnabled()){
+			decisionAuditor.audit(this, r, request);
 		}
-		decisionAuditor.audit(this, r, request);
-		decisionCache.putDecision(request, r);
+		if(isDecisionCacheEnabled()){
+			decisionCache.putDecision(
+					request, r, 
+					evalContext.getDecisionCacheTTL());
+		}
+		decisionTime.set(System.currentTimeMillis() - start);
 		return r;
 	}
 	
@@ -108,6 +128,7 @@ public final class DefaultPolicyDecisionPoint
 			Collection<Attributes> includeInResult, 
 			boolean returnPolicyIdList)
 	{
+		decisionCount.incrementAndGet();
 		if(decision == Decision.NOT_APPLICABLE){
 			return new Result(decision, 
 					Status.createSuccess(), 
@@ -127,5 +148,35 @@ public final class DefaultPolicyDecisionPoint
 				(returnPolicyIdList?
 						context.getEvaluatedPolicies():
 							Collections.<CompositeDecisionRuleIDReference>emptyList()));
+	}
+
+	@Override
+	public boolean isDecisionAuditEnabled() {
+		return auditEnabled.get();
+	}
+
+	@Override
+	public void setDecisionAuditEnabled(boolean enabled) {
+		this.auditEnabled.set(enabled);
+	}
+
+	@Override
+	public boolean isDecisionCacheEnabled() {
+		return cacheEnabled.get();
+	}
+
+	@Override
+	public void setDecisionCacheEnabled(boolean enabled) {
+		this.cacheEnabled.set(enabled);		
+	}
+
+	@Override
+	public long getDecisionCount() {
+		return decisionCount.get();
+	}
+
+	@Override
+	public long getDecisionTime() {
+		return decisionTime.get();
 	}
 }
