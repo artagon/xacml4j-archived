@@ -5,6 +5,7 @@
 /target
 /.idea/
 /xacml.iml
+*~
 
 # /xacml-core/
 /xacml-core/.classpath
