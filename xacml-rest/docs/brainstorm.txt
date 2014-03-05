@@ -1,0 +1,11 @@
+
+- different kinds of requests:
+  json+sec;
+  xacml+sec;
+  xacml+saml;
+  
+- collect all PDPs from:
+  spring config;
+  osgi;
+  other registries;
+    xacml+sec;

@@ -13,6 +13,7 @@
 		<module>xacml-spring</module>
 		<module>xacml-test</module>
 		<module>xacml-ws</module>
+		<module>xacml-rest</module>
 		<module>xacml-json</module>
 	</modules>
 	<properties>
