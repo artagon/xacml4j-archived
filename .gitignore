@@ -1,10 +1,10 @@
-# /
-/.classpath
-/.project
-/.settings
-/target
-/.idea/
-/xacml.iml
+# All subdirs
+.classpath
+.project
+.settings
+target
+.idea/
+*.iml
 *~
 local-docs
 
